@@ -1,0 +1,164 @@
+body {
+	padding: 0;
+	margin: 0;
+    font-family: 'Poppins';
+}
+
+.container1{
+    width: 100%;
+    height: auto;
+    padding-left: 8%;
+    padding-right: 8%;
+    text-align: center;
+    box-sizing: border-box;
+    overflow: hidden;
+    background-repeat: no-repeat;
+    background-size: cover;
+    z-index: 0;
+    margin-bottom: 4px;
+    justify-content: center;
+}
+.container1 img{
+  text-align: center;
+  width: 25%;
+  height: auto;
+  margin-top: 10%;
+}
+
+.container2{
+    width: 100%;
+    height: auto;
+    padding-left: 8%;
+    padding-right: 8%;
+    text-align: center;
+    box-sizing: border-box;
+    overflow: hidden;
+    background-repeat: no-repeat;
+    background-size: cover;
+    z-index: 0;
+    margin-bottom: 0px;
+}
+
+.container2 h1{
+  text-align: center;
+  width: 100%;
+  height: auto;
+  margin-bottom: 0px;
+}
+
+.container2 img{
+    text-align: center;
+    width: 100%;
+    height: auto;
+    margin-bottom: 0px;
+}
+
+.container4{
+  width: 100%;
+  height: auto;
+  padding-left: 8%;
+  padding-right: 8%;
+  text-align: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  background-repeat: no-repeat;
+  background-size: cover;
+  z-index: 0;
+  margin-bottom: 0px;
+}
+
+.container4 img{
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.popup {
+    position: fixed;
+    bottom: 0;
+    display: inline-block;
+    cursor: pointer;
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    width : 100%;
+    height: 0px;
+    filter: drop-shadow(0px -4px 4px rgba(0, 0, 0, 0.25));
+  }
+  
+  .popup h1 {
+    font-size: 20px;
+    font-weight: bold;
+    margin: 6px;
+  }
+
+  .popup p {
+    font-size: 14px;
+    font-weight: 100%;
+    margin: 6px;
+  }
+
+  .popup h4{
+    font-size: 18px;
+    font-weight: bold;
+    margin: 6px;
+  }
+
+  .popup .last {
+    font-size: 14px;
+    font-weight: 100%;
+    margin-bottom: 48px;
+  }
+
+  .popup .nama_pemilik {
+    font-size: 14px;
+    font-weight: 100%;
+    margin-bottom: 32px;
+  }
+
+  .popup a{
+    font-size: 16px;
+    text-decoration: none;
+    color: black;
+    font-weight: bold;
+  }
+
+  .popup .btn-cancel{
+  float: right;
+  text-decoration: none;
+  background-color: none;
+
+  }
+
+  /* The actual popup */
+  .popup .popuptext {
+    width : 100%;
+    height: 500px;
+    visibility: hidden;
+    background-color: rgb(255, 255, 255);
+    color: rgb(0, 0, 0);
+    text-align: center;
+    position: absolute;
+    z-index: 1;
+    margin : auto;
+  }
+  
+  
+  /* Toggle this class - hide and show the popup */
+  .popup .show {
+    visibility: visible;
+    -webkit-animation: fadeIn 1s;
+    animation: fadeIn 1s;
+  }
+  
+  /* Add animation (fade in the popup) */
+  @-webkit-keyframes fadeIn {
+    from {opacity: 0;} 
+    to {opacity: 1;}
+  }
+  
+  @keyframes fadeIn {
+    from {opacity: 0;}
+    to {opacity:1 ;}
+  }

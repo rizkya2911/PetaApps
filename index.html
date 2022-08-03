@@ -1,0 +1,1615 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge" />
+    <title>PetaApps</title>
+    
+    <link rel="stylesheet" href="index.css">
+    <link href='https://fonts.googleapis.com/css?family=Poppins' rel='stylesheet'>
+    
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+
+        <script type="text/javascript">
+(function (global, factory) {
+    if (typeof define === "function" && define.amd) {
+        define(['exports'], factory);
+    } else if (typeof exports !== "undefined") {
+        factory(exports);
+    } else {
+        var mod = {
+            exports: {}
+        };
+        factory(mod.exports);
+        global.PinchZoom = mod.exports;
+    }
+})(this, function (exports) {
+    'use strict';
+
+    Object.defineProperty(exports, "__esModule", {
+        value: true
+    });
+    /*
+    
+        PinchZoom.js
+        Copyright (c) Manuel Stofer 2013 - today
+    
+        Author: Manuel Stofer (mst@rtp.ch)
+        Version: 2.3.4
+    
+        Permission is hereby granted, free of charge, to any person obtaining a copy
+        of this software and associated documentation files (the "Software"), to deal
+        in the Software without restriction, including without limitation the rights
+        to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+        copies of the Software, and to permit persons to whom the Software is
+        furnished to do so, subject to the following conditions:
+    
+        The above copyright notice and this permission notice shall be included in
+        all copies or substantial portions of the Software.
+    
+        THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+        IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+        FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+        AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+        LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+        OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+        THE SOFTWARE.
+    
+    */
+
+    // polyfills
+    if (typeof Object.assign != 'function') {
+        // Must be writable: true, enumerable: false, configurable: true
+        Object.defineProperty(Object, "assign", {
+            value: function assign(target, varArgs) {
+                // .length of function is 2
+                if (target == null) {
+                    // TypeError if undefined or null
+                    throw new TypeError('Cannot convert undefined or null to object');
+                }
+
+                var to = Object(target);
+
+                for (var index = 1; index < arguments.length; index++) {
+                    var nextSource = arguments[index];
+
+                    if (nextSource != null) {
+                        // Skip over if undefined or null
+                        for (var nextKey in nextSource) {
+                            // Avoid bugs when hasOwnProperty is shadowed
+                            if (Object.prototype.hasOwnProperty.call(nextSource, nextKey)) {
+                                to[nextKey] = nextSource[nextKey];
+                            }
+                        }
+                    }
+                }
+                return to;
+            },
+            writable: true,
+            configurable: true
+        });
+    }
+
+    if (typeof Array.from != 'function') {
+        Array.from = function (object) {
+            return [].slice.call(object);
+        };
+    }
+
+    // utils
+    var buildElement = function buildElement(str) {
+        // empty string as title argument required by IE and Edge
+        var tmp = document.implementation.createHTMLDocument('');
+        tmp.body.innerHTML = str;
+        return Array.from(tmp.body.children)[0];
+    };
+
+    var triggerEvent = function triggerEvent(el, name) {
+        var event = document.createEvent('HTMLEvents');
+        event.initEvent(name, true, false);
+        el.dispatchEvent(event);
+    };
+
+    var definePinchZoom = function definePinchZoom() {
+
+        /**
+         * Pinch zoom
+         * @param el
+         * @param options
+         * @constructor
+         */
+        var PinchZoom = function PinchZoom(el, options) {
+            this.el = el;
+            this.zoomFactor = 1;
+            this.lastScale = 1;
+            this.offset = {
+                x: 0,
+                y: 0
+            };
+            this.initialOffset = {
+                x: 0,
+                y: 0
+            };
+            this.options = Object.assign({}, this.defaults, options);
+            this.setupMarkup();
+            this.bindEvents();
+            this.update();
+
+            // The image may already be loaded when PinchZoom is initialized,
+            // and then the load event (which trigger update) will never fire.
+            if (this.isImageLoaded(this.el)) {
+                this.updateAspectRatio();
+                this.setupOffsets();
+            }
+
+            this.enable();
+        },
+            sum = function sum(a, b) {
+            return a + b;
+        },
+            isCloseTo = function isCloseTo(value, expected) {
+            return value > expected - 0.01 && value < expected + 0.01;
+        };
+
+        PinchZoom.prototype = {
+
+            defaults: {
+                tapZoomFactor: 2,
+                zoomOutFactor: 1.3,
+                animationDuration: 300,
+                maxZoom: 4,
+                minZoom: 0.5,
+                draggableUnzoomed: true,
+                lockDragAxis: false,
+                setOffsetsOnce: false,
+                use2d: true,
+                zoomStartEventName: 'pz_zoomstart',
+                zoomUpdateEventName: 'pz_zoomupdate',
+                zoomEndEventName: 'pz_zoomend',
+                dragStartEventName: 'pz_dragstart',
+                dragUpdateEventName: 'pz_dragupdate',
+                dragEndEventName: 'pz_dragend',
+                doubleTapEventName: 'pz_doubletap',
+                verticalPadding: 0,
+                horizontalPadding: 0,
+                onZoomStart: null,
+                onZoomEnd: null,
+                onZoomUpdate: null,
+                onDragStart: null,
+                onDragEnd: null,
+                onDragUpdate: null,
+                onDoubleTap: null
+            },
+
+            /**
+             * Event handler for 'dragstart'
+             * @param event
+             */
+            handleDragStart: function handleDragStart(event) {
+                triggerEvent(this.el, this.options.dragStartEventName);
+                if (typeof this.options.onDragStart == "function") {
+                    this.options.onDragStart(this, event);
+                }
+                this.stopAnimation();
+                this.lastDragPosition = false;
+                this.hasInteraction = true;
+                this.handleDrag(event);
+            },
+
+            /**
+             * Event handler for 'drag'
+             * @param event
+             */
+            handleDrag: function handleDrag(event) {
+                var touch = this.getTouches(event)[0];
+                this.drag(touch, this.lastDragPosition);
+                this.offset = this.sanitizeOffset(this.offset);
+                this.lastDragPosition = touch;
+            },
+
+            handleDragEnd: function handleDragEnd() {
+                triggerEvent(this.el, this.options.dragEndEventName);
+                if (typeof this.options.onDragEnd == "function") {
+                    this.options.onDragEnd(this, event);
+                }
+                this.end();
+            },
+
+            /**
+             * Event handler for 'zoomstart'
+             * @param event
+             */
+            handleZoomStart: function handleZoomStart(event) {
+                triggerEvent(this.el, this.options.zoomStartEventName);
+                if (typeof this.options.onZoomStart == "function") {
+                    this.options.onZoomStart(this, event);
+                }
+                this.stopAnimation();
+                this.lastScale = 1;
+                this.nthZoom = 0;
+                this.lastZoomCenter = false;
+                this.hasInteraction = true;
+            },
+
+            /**
+             * Event handler for 'zoom'
+             * @param event
+             */
+            handleZoom: function handleZoom(event, newScale) {
+                // a relative scale factor is used
+                var touchCenter = this.getTouchCenter(this.getTouches(event)),
+                    scale = newScale / this.lastScale;
+                this.lastScale = newScale;
+
+                // the first touch events are thrown away since they are not precise
+                this.nthZoom += 1;
+                if (this.nthZoom > 3) {
+
+                    this.scale(scale, touchCenter);
+                    this.drag(touchCenter, this.lastZoomCenter);
+                }
+                this.lastZoomCenter = touchCenter;
+            },
+
+            handleZoomEnd: function handleZoomEnd() {
+                triggerEvent(this.el, this.options.zoomEndEventName);
+                if (typeof this.options.onZoomEnd == "function") {
+                    this.options.onZoomEnd(this, event);
+                }
+                this.end();
+            },
+
+            /**
+             * Event handler for 'doubletap'
+             * @param event
+             */
+            handleDoubleTap: function handleDoubleTap(event) {
+                var center = this.getTouches(event)[0],
+                    zoomFactor = this.zoomFactor > 1 ? 1 : this.options.tapZoomFactor,
+                    startZoomFactor = this.zoomFactor,
+                    updateProgress = function (progress) {
+                    this.scaleTo(startZoomFactor + progress * (zoomFactor - startZoomFactor), center);
+                }.bind(this);
+
+                if (this.hasInteraction) {
+                    return;
+                }
+
+                this.isDoubleTap = true;
+
+                if (startZoomFactor > zoomFactor) {
+                    center = this.getCurrentZoomCenter();
+                }
+
+                this.animate(this.options.animationDuration, updateProgress, this.swing);
+                triggerEvent(this.el, this.options.doubleTapEventName);
+                if (typeof this.options.onDoubleTap == "function") {
+                    this.options.onDoubleTap(this, event);
+                }
+            },
+
+            /**
+             * Compute the initial offset
+             *
+             * the element should be centered in the container upon initialization
+             */
+            computeInitialOffset: function computeInitialOffset() {
+                this.initialOffset = {
+                    x: -Math.abs(this.el.offsetWidth * this.getInitialZoomFactor() - this.container.offsetWidth) / 2,
+                    y: -Math.abs(this.el.offsetHeight * this.getInitialZoomFactor() - this.container.offsetHeight) / 2
+                };
+            },
+
+            /**
+             * Reset current image offset to that of the initial offset
+             */
+            resetOffset: function resetOffset() {
+                this.offset.x = this.initialOffset.x;
+                this.offset.y = this.initialOffset.y;
+            },
+
+            /**
+             * Determine if image is loaded
+             */
+            isImageLoaded: function isImageLoaded(el) {
+                if (el.nodeName === 'IMG') {
+                    return el.complete && el.naturalHeight !== 0;
+                } else {
+                    return Array.from(el.querySelectorAll('img')).every(this.isImageLoaded);
+                }
+            },
+
+            setupOffsets: function setupOffsets() {
+                if (this.options.setOffsetsOnce && this._isOffsetsSet) {
+                    return;
+                }
+
+                this._isOffsetsSet = true;
+
+                this.computeInitialOffset();
+                this.resetOffset();
+            },
+
+            /**
+             * Max / min values for the offset
+             * @param offset
+             * @return {Object} the sanitized offset
+             */
+            sanitizeOffset: function sanitizeOffset(offset) {
+                var elWidth = this.el.offsetWidth * this.getInitialZoomFactor() * this.zoomFactor;
+                var elHeight = this.el.offsetHeight * this.getInitialZoomFactor() * this.zoomFactor;
+                var maxX = elWidth - this.getContainerX() + this.options.horizontalPadding,
+                    maxY = elHeight - this.getContainerY() + this.options.verticalPadding,
+                    maxOffsetX = Math.max(maxX, 0),
+                    maxOffsetY = Math.max(maxY, 0),
+                    minOffsetX = Math.min(maxX, 0) - this.options.horizontalPadding,
+                    minOffsetY = Math.min(maxY, 0) - this.options.verticalPadding;
+
+                return {
+                    x: Math.min(Math.max(offset.x, minOffsetX), maxOffsetX),
+                    y: Math.min(Math.max(offset.y, minOffsetY), maxOffsetY)
+                };
+            },
+
+            /**
+             * Scale to a specific zoom factor (not relative)
+             * @param zoomFactor
+             * @param center
+             */
+            scaleTo: function scaleTo(zoomFactor, center) {
+                this.scale(zoomFactor / this.zoomFactor, center);
+            },
+
+            /**
+             * Scales the element from specified center
+             * @param scale
+             * @param center
+             */
+            scale: function scale(_scale, center) {
+                _scale = this.scaleZoomFactor(_scale);
+                this.addOffset({
+                    x: (_scale - 1) * (center.x + this.offset.x),
+                    y: (_scale - 1) * (center.y + this.offset.y)
+                });
+                triggerEvent(this.el, this.options.zoomUpdateEventName);
+                if (typeof this.options.onZoomUpdate == "function") {
+                    this.options.onZoomUpdate(this, event);
+                }
+            },
+
+            /**
+             * Scales the zoom factor relative to current state
+             * @param scale
+             * @return the actual scale (can differ because of max min zoom factor)
+             */
+            scaleZoomFactor: function scaleZoomFactor(scale) {
+                var originalZoomFactor = this.zoomFactor;
+                this.zoomFactor *= scale;
+                this.zoomFactor = Math.min(this.options.maxZoom, Math.max(this.zoomFactor, this.options.minZoom));
+                return this.zoomFactor / originalZoomFactor;
+            },
+
+            /**
+             * Determine if the image is in a draggable state
+             *
+             * When the image can be dragged, the drag event is acted upon and cancelled.
+             * When not draggable, the drag event bubbles through this component.
+             *
+             * @return {Boolean}
+             */
+            canDrag: function canDrag() {
+                return this.options.draggableUnzoomed || !isCloseTo(this.zoomFactor, 1);
+            },
+
+            /**
+             * Drags the element
+             * @param center
+             * @param lastCenter
+             */
+            drag: function drag(center, lastCenter) {
+                if (lastCenter) {
+                    if (this.options.lockDragAxis) {
+                        // lock scroll to position that was changed the most
+                        if (Math.abs(center.x - lastCenter.x) > Math.abs(center.y - lastCenter.y)) {
+                            this.addOffset({
+                                x: -(center.x - lastCenter.x),
+                                y: 0
+                            });
+                        } else {
+                            this.addOffset({
+                                y: -(center.y - lastCenter.y),
+                                x: 0
+                            });
+                        }
+                    } else {
+                        this.addOffset({
+                            y: -(center.y - lastCenter.y),
+                            x: -(center.x - lastCenter.x)
+                        });
+                    }
+                    triggerEvent(this.el, this.options.dragUpdateEventName);
+                    if (typeof this.options.onDragUpdate == "function") {
+                        this.options.onDragUpdate(this, event);
+                    }
+                }
+            },
+
+            /**
+             * Calculates the touch center of multiple touches
+             * @param touches
+             * @return {Object}
+             */
+            getTouchCenter: function getTouchCenter(touches) {
+                return this.getVectorAvg(touches);
+            },
+
+            /**
+             * Calculates the average of multiple vectors (x, y values)
+             */
+            getVectorAvg: function getVectorAvg(vectors) {
+                return {
+                    x: vectors.map(function (v) {
+                        return v.x;
+                    }).reduce(sum) / vectors.length,
+                    y: vectors.map(function (v) {
+                        return v.y;
+                    }).reduce(sum) / vectors.length
+                };
+            },
+
+            /**
+             * Adds an offset
+             * @param offset the offset to add
+             * @return return true when the offset change was accepted
+             */
+            addOffset: function addOffset(offset) {
+                this.offset = {
+                    x: this.offset.x + offset.x,
+                    y: this.offset.y + offset.y
+                };
+            },
+
+            sanitize: function sanitize() {
+                if (this.zoomFactor < this.options.zoomOutFactor) {
+                    this.zoomOutAnimation();
+                } else if (this.isInsaneOffset(this.offset)) {
+                    this.sanitizeOffsetAnimation();
+                }
+            },
+
+            /**
+             * Checks if the offset is ok with the current zoom factor
+             * @param offset
+             * @return {Boolean}
+             */
+            isInsaneOffset: function isInsaneOffset(offset) {
+                var sanitizedOffset = this.sanitizeOffset(offset);
+                return sanitizedOffset.x !== offset.x || sanitizedOffset.y !== offset.y;
+            },
+
+            /**
+             * Creates an animation moving to a sane offset
+             */
+            sanitizeOffsetAnimation: function sanitizeOffsetAnimation() {
+                var targetOffset = this.sanitizeOffset(this.offset),
+                    startOffset = {
+                    x: this.offset.x,
+                    y: this.offset.y
+                },
+                    updateProgress = function (progress) {
+                    this.offset.x = startOffset.x + progress * (targetOffset.x - startOffset.x);
+                    this.offset.y = startOffset.y + progress * (targetOffset.y - startOffset.y);
+                    this.update();
+                }.bind(this);
+
+                this.animate(this.options.animationDuration, updateProgress, this.swing);
+            },
+
+            /**
+             * Zooms back to the original position,
+             * (no offset and zoom factor 1)
+             */
+            zoomOutAnimation: function zoomOutAnimation() {
+                if (this.zoomFactor === 1) {
+                    return;
+                }
+
+                var startZoomFactor = this.zoomFactor,
+                    zoomFactor = 1,
+                    center = this.getCurrentZoomCenter(),
+                    updateProgress = function (progress) {
+                    this.scaleTo(startZoomFactor + progress * (zoomFactor - startZoomFactor), center);
+                }.bind(this);
+
+                this.animate(this.options.animationDuration, updateProgress, this.swing);
+            },
+
+            /**
+             * Updates the container aspect ratio
+             *
+             * Any previous container height must be cleared before re-measuring the
+             * parent height, since it depends implicitly on the height of any of its children
+             */
+            updateAspectRatio: function updateAspectRatio() {
+                this.unsetContainerY();
+                this.setContainerY(this.container.parentElement.offsetHeight);
+            },
+
+            /**
+             * Calculates the initial zoom factor (for the element to fit into the container)
+             * @return {number} the initial zoom factor
+             */
+            getInitialZoomFactor: function getInitialZoomFactor() {
+                var xZoomFactor = this.container.offsetWidth / this.el.offsetWidth;
+                var yZoomFactor = this.container.offsetHeight / this.el.offsetHeight;
+
+                return Math.min(xZoomFactor, yZoomFactor);
+            },
+
+            /**
+             * Calculates the aspect ratio of the element
+             * @return the aspect ratio
+             */
+            getAspectRatio: function getAspectRatio() {
+                return this.el.offsetWidth / this.el.offsetHeight;
+            },
+
+            /**
+             * Calculates the virtual zoom center for the current offset and zoom factor
+             * (used for reverse zoom)
+             * @return {Object} the current zoom center
+             */
+            getCurrentZoomCenter: function getCurrentZoomCenter() {
+                var offsetLeft = this.offset.x - this.initialOffset.x;
+                var centerX = -1 * this.offset.x - offsetLeft / (1 / this.zoomFactor - 1);
+
+                var offsetTop = this.offset.y - this.initialOffset.y;
+                var centerY = -1 * this.offset.y - offsetTop / (1 / this.zoomFactor - 1);
+
+                return {
+                    x: centerX,
+                    y: centerY
+                };
+            },
+
+            /**
+             * Returns the touches of an event relative to the container offset
+             * @param event
+             * @return array touches
+             */
+            getTouches: function getTouches(event) {
+                var rect = this.container.getBoundingClientRect();
+                var scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+                var scrollLeft = document.documentElement.scrollLeft || document.body.scrollLeft;
+                var posTop = rect.top + scrollTop;
+                var posLeft = rect.left + scrollLeft;
+
+                return Array.prototype.slice.call(event.touches).map(function (touch) {
+                    return {
+                        x: touch.pageX - posLeft,
+                        y: touch.pageY - posTop
+                    };
+                });
+            },
+
+            /**
+             * Animation loop
+             * does not support simultaneous animations
+             * @param duration
+             * @param framefn
+             * @param timefn
+             * @param callback
+             */
+            animate: function animate(duration, framefn, timefn, callback) {
+                var startTime = new Date().getTime(),
+                    renderFrame = function () {
+                    if (!this.inAnimation) {
+                        return;
+                    }
+                    var frameTime = new Date().getTime() - startTime,
+                        progress = frameTime / duration;
+                    if (frameTime >= duration) {
+                        framefn(1);
+                        if (callback) {
+                            callback();
+                        }
+                        this.update();
+                        this.stopAnimation();
+                        this.update();
+                    } else {
+                        if (timefn) {
+                            progress = timefn(progress);
+                        }
+                        framefn(progress);
+                        this.update();
+                        requestAnimationFrame(renderFrame);
+                    }
+                }.bind(this);
+                this.inAnimation = true;
+                requestAnimationFrame(renderFrame);
+            },
+
+            /**
+             * Stops the animation
+             */
+            stopAnimation: function stopAnimation() {
+                this.inAnimation = false;
+            },
+
+            /**
+             * Swing timing function for animations
+             * @param p
+             * @return {Number}
+             */
+            swing: function swing(p) {
+                return -Math.cos(p * Math.PI) / 2 + 0.5;
+            },
+
+            getContainerX: function getContainerX() {
+                return this.container.offsetWidth;
+            },
+
+            getContainerY: function getContainerY() {
+                return this.container.offsetHeight;
+            },
+
+            setContainerY: function setContainerY(y) {
+                return this.container.style.height = (y-200) + 'px';
+            },
+
+            unsetContainerY: function unsetContainerY() {
+                this.container.style.height = null;
+            },
+
+            /**
+             * Creates the expected html structure
+             */
+            setupMarkup: function setupMarkup() {
+                this.container = buildElement('<div class="pinch-zoom-container"></div>');
+                this.el.parentNode.insertBefore(this.container, this.el);
+                this.container.appendChild(this.el);
+
+                this.container.style.overflow = 'hidden';
+                this.container.style.position = 'relative';
+                
+
+                this.el.style.webkitTransformOrigin = '0% 0%';
+                this.el.style.mozTransformOrigin = '0% 0%';
+                this.el.style.msTransformOrigin = '0% 0%';
+                this.el.style.oTransformOrigin = '0% 0%';
+                this.el.style.transformOrigin = '0% 0%';
+
+                this.el.style.position = 'absolute';
+            },
+
+            end: function end() {
+                this.hasInteraction = false;
+                this.sanitize();
+                this.update();
+            },
+
+            /**
+             * Binds all required event listeners
+             */
+            bindEvents: function bindEvents() {
+                var self = this;
+                detectGestures(this.container, this);
+
+                window.addEventListener('resize', this.update.bind(this));
+                Array.from(this.el.querySelectorAll('img')).forEach(function (imgEl) {
+                    imgEl.addEventListener('load', self.update.bind(self));
+                });
+
+                if (this.el.nodeName === 'IMG') {
+                    this.el.addEventListener('load', this.update.bind(this));
+                }
+            },
+
+            /**
+             * Updates the css values according to the current zoom factor and offset
+             */
+            update: function update(event) {
+                if (this.updatePlaned) {
+                    return;
+                }
+                this.updatePlaned = true;
+
+                window.setTimeout(function () {
+                    this.updatePlaned = false;
+
+                    if (event && event.type === 'resize') {
+                        this.updateAspectRatio();
+                        this.setupOffsets();
+                    }
+
+                    if (event && event.type === 'load') {
+                        this.updateAspectRatio();
+                        this.setupOffsets();
+                    }
+
+                    var zoomFactor = this.getInitialZoomFactor() * this.zoomFactor,
+                        offsetX = -this.offset.x / zoomFactor,
+                        offsetY = -this.offset.y / zoomFactor,
+                        transform3d = 'scale3d(' + zoomFactor + ', ' + zoomFactor + ',1) ' + 'translate3d(' + offsetX + 'px,' + offsetY + 'px,0px)',
+                        transform2d = 'scale(' + zoomFactor + ', ' + zoomFactor + ') ' + 'translate(' + offsetX + 'px,' + offsetY + 'px)',
+                        removeClone = function () {
+                        if (this.clone) {
+                            this.clone.parentNode.removeChild(this.clone);
+                            delete this.clone;
+                        }
+                    }.bind(this);
+
+                    // Scale 3d and translate3d are faster (at least on ios)
+                    // but they also reduce the quality.
+                    // PinchZoom uses the 3d transformations during interactions
+                    // after interactions it falls back to 2d transformations
+                    if (!this.options.use2d || this.hasInteraction || this.inAnimation) {
+                        this.is3d = true;
+                        removeClone();
+
+                        this.el.style.webkitTransform = transform3d;
+                        this.el.style.mozTransform = transform2d;
+                        this.el.style.msTransform = transform2d;
+                        this.el.style.oTransform = transform2d;
+                        this.el.style.transform = transform3d;
+                    } else {
+                        // When changing from 3d to 2d transform webkit has some glitches.
+                        // To avoid this, a copy of the 3d transformed element is displayed in the
+                        // foreground while the element is converted from 3d to 2d transform
+                        if (this.is3d) {
+                            this.clone = this.el.cloneNode(true);
+                            this.clone.style.pointerEvents = 'none';
+                            this.container.appendChild(this.clone);
+                            window.setTimeout(removeClone, 200);
+                        }
+
+                        this.el.style.webkitTransform = transform2d;
+                        this.el.style.mozTransform = transform2d;
+                        this.el.style.msTransform = transform2d;
+                        this.el.style.oTransform = transform2d;
+                        this.el.style.transform = transform2d;
+
+                        this.is3d = false;
+                    }
+                }.bind(this), 0);
+            },
+
+            /**
+             * Enables event handling for gestures
+             */
+            enable: function enable() {
+                this.enabled = true;
+            },
+
+            /**
+             * Disables event handling for gestures
+             */
+            disable: function disable() {
+                this.enabled = false;
+            }
+        };
+
+        var detectGestures = function detectGestures(el, target) {
+            var interaction = null,
+                fingers = 0,
+                lastTouchStart = null,
+                startTouches = null,
+                setInteraction = function setInteraction(newInteraction, event) {
+                if (interaction !== newInteraction) {
+
+                    if (interaction && !newInteraction) {
+                        switch (interaction) {
+                            case "zoom":
+                                target.handleZoomEnd(event);
+                                break;
+                            case 'drag':
+                                target.handleDragEnd(event);
+                                break;
+                        }
+                    }
+
+                    switch (newInteraction) {
+                        case 'zoom':
+                            target.handleZoomStart(event);
+                            break;
+                        case 'drag':
+                            target.handleDragStart(event);
+                            break;
+                    }
+                }
+                interaction = newInteraction;
+            },
+                updateInteraction = function updateInteraction(event) {
+                if (fingers === 2) {
+                    setInteraction('zoom');
+                } else if (fingers === 1 && target.canDrag()) {
+                    setInteraction('drag', event);
+                } else {
+                    setInteraction(null, event);
+                }
+            },
+                targetTouches = function targetTouches(touches) {
+                return Array.from(touches).map(function (touch) {
+                    return {
+                        x: touch.pageX,
+                        y: touch.pageY
+                    };
+                });
+            },
+                getDistance = function getDistance(a, b) {
+                var x, y;
+                x = a.x - b.x;
+                y = a.y - b.y;
+                return Math.sqrt(x * x + y * y);
+            },
+                calculateScale = function calculateScale(startTouches, endTouches) {
+                var startDistance = getDistance(startTouches[0], startTouches[1]),
+                    endDistance = getDistance(endTouches[0], endTouches[1]);
+                return endDistance / startDistance;
+            },
+                cancelEvent = function cancelEvent(event) {
+                event.stopPropagation();
+                event.preventDefault();
+            },
+                detectDoubleTap = function detectDoubleTap(event) {
+                var time = new Date().getTime();
+
+                if (fingers > 1) {
+                    lastTouchStart = null;
+                }
+
+                if (time - lastTouchStart < 300) {
+                    cancelEvent(event);
+
+                    target.handleDoubleTap(event);
+                    switch (interaction) {
+                        case "zoom":
+                            target.handleZoomEnd(event);
+                            break;
+                        case 'drag':
+                            target.handleDragEnd(event);
+                            break;
+                    }
+                } else {
+                    target.isDoubleTap = false;
+                }
+
+                if (fingers === 1) {
+                    lastTouchStart = time;
+                }
+            },
+                firstMove = true;
+
+            el.addEventListener('touchstart', function (event) {
+                if (target.enabled) {
+                    firstMove = true;
+                    fingers = event.touches.length;
+                    detectDoubleTap(event);
+                }
+            });
+
+            el.addEventListener('touchmove', function (event) {
+                if (target.enabled && !target.isDoubleTap) {
+                    if (firstMove) {
+                        updateInteraction(event);
+                        if (interaction) {
+                            cancelEvent(event);
+                        }
+                        startTouches = targetTouches(event.touches);
+                    } else {
+                        switch (interaction) {
+                            case 'zoom':
+                                if (startTouches.length == 2 && event.touches.length == 2) {
+                                    target.handleZoom(event, calculateScale(startTouches, targetTouches(event.touches)));
+                                }
+                                break;
+                            case 'drag':
+                                target.handleDrag(event);
+                                break;
+                        }
+                        if (interaction) {
+                            cancelEvent(event);
+                            target.update();
+                        }
+                    }
+
+                    firstMove = false;
+                }
+            });
+
+            el.addEventListener('touchend', function (event) {
+                if (target.enabled) {
+                    fingers = event.touches.length;
+                    updateInteraction(event);
+                }
+            });
+        };
+
+        return PinchZoom;
+    };
+
+    var PinchZoom = definePinchZoom();
+
+    exports.default = PinchZoom;
+});
+</script>
+<script type = "text/javascript">
+         //prefixes of implementation that we want to test
+         window.indexedDB = window.indexedDB || window.mozIndexedDB || 
+         window.webkitIndexedDB || window.msIndexedDB;
+         
+         //prefixes of window.IDB objects
+         window.IDBTransaction = window.IDBTransaction || 
+         window.webkitIDBTransaction || window.msIDBTransaction;
+         window.IDBKeyRange = window.IDBKeyRange || window.webkitIDBKeyRange || 
+         window.msIDBKeyRange
+
+         var r = indexedDB.deleteDatabase("UMKMDatabase",1);
+         
+         if (!window.indexedDB) {
+            window.alert("Your browser doesn't support a stable version of IndexedDB.")
+         }
+         
+         const umkmData = [
+            { id: "1537,593", nama_umkm: "Dapur Nyonya", nama_pemilik: "Bu Sari", produk: "Jajanan Pasar, Pastel, Nasi Box",
+            kisaran_harga : "Mulai Rp2000", alamat : "Gg. Labu, No. 17, RT 1, RW 1, Trimulyo I",
+            no_telp : "6282251600684",link_gmaps:"https://goo.gl/maps/EJ39R6weV1XdczfV7" },
+
+            { id: "1183,1026", nama_umkm: "Citra Rasa", nama_pemilik: "Pemilik", produk: "Nasi Box, Snack Box",
+            kisaran_harga : "-", alamat : "RT 1, RW 1, Trimulyo I",
+            no_telp : "6287839355804",link_gmaps:"https://goo.gl/maps/gQFkR6wdu4m2rgH67" },
+
+            { id: "1216,1235", nama_umkm: "Warung Rahayu", nama_pemilik: "Bu Rahayu", produk: "Makanan",
+            kisaran_harga : "-", alamat : "RT 1, RW 1, Trimulyo I",
+            no_telp : "-",link_gmaps:"https://goo.gl/maps/V8EqXFBZyyz4kK1eA" },
+
+            {id: "2090,810", nama_umkm: "3 AM Barokah", nama_pemilik: "Bu Rita", produk: "Frozen food dan bumbu-bumbunya",
+            kisaran_harga : "Rp8000-Rp50000", alamat : "RT 02, RW 01, Trimulyo I",
+            no_telp : "6281328361818",link_gmaps:"https://goo.gl/maps/8U4zJF4GHMYz9skM6" },
+
+            {id: "2261,916", nama_umkm: "Almacake Wonosari", nama_pemilik: "Bu Sugianti", produk: "Salad buah, brownis, kue tart",
+            kisaran_harga : "Rp15000-Rp135000", alamat : "RT 02, RW 01, Trimulyo I",
+            no_telp : "6281229856111",link_gmaps:"https://goo.gl/maps/JkjsDf4BVEvo2RwT9" },
+
+            {id: "1370,1750", nama_umkm: "Mebel Sridaya", nama_pemilik: "Pemilik", produk: "Peralatan kantor & rumah, kursi, meja, keranjang kasur, lemari, dll",
+            kisaran_harga : "Rp500000-Rp2000000", alamat : "Jl. Veteran, No. 12, RT 3, RW 1, Trimulyo I",
+            no_telp : "6287738500837",link_gmaps:"https://goo.gl/maps/xDeGCfQmoZ21tiRXA" },
+
+            {id: "1199,1733", nama_umkm: "Snack & Catering D'veno", nama_pemilik: "Bu Asih", produk: "Jajanan pasar dan nasi kotak",
+            kisaran_harga : "Snack mulai Rp1000 Nasi Kotak mulai Rp15000", alamat : "Jl. Veteran, No. 14, RT 3, RW 1, Trimulyo I",
+            no_telp : "6282329631983",link_gmaps:"https://goo.gl/maps/3g45W8AG8BWRdXpu7" },
+
+            {id: "1023,1941", nama_umkm: "Garasi Reklame", nama_pemilik: "Pak Khosi'in", produk: "Papan nama, neon box, huruf, timbul, digital printing, dll",
+            kisaran_harga : "Rp800000/meter", alamat : "Jl. Veteran, no. 37, RT 03, RW 01, Trimulyo I",
+            no_telp : "6281931752682",link_gmaps:"https://goo.gl/maps/PWEG4pNzh8udCoAj6" },
+
+            {id: "1199,2129", nama_umkm: "Manis Snack", nama_pemilik: "Bu Choirunnisa", produk: "Jajanan pasar, susu kedelai, nasi kotak, dll",
+            kisaran_harga : "Snack Rp1500 Nasi kotak RP5000-Rp10000", alamat : "Jl. Pakaryan, Gg. Teratai, RT 03, RW 1, Trimulyo I",
+            no_telp : "6282227707002",link_gmaps:"https://goo.gl/maps/STEEs7RvDC9Kh7oT7" },
+
+            {id: "562,2162", nama_umkm: "Ayam Goreng Mbak Lis", nama_pemilik: "Ibu Esti Sri Sulistyowati ", produk: "Ayam Goreng, Bacem, Sambel",
+            kisaran_harga : "-", alamat : "RT 03, RW 01, Trimulyo I",
+            no_telp : "6287839331925",link_gmaps:"https://goo.gl/maps/qkyrx8KXGVhz3LGHA" },
+
+            {id: "1864,1439", nama_umkm: "Bebek Sungkem", nama_pemilik: "Pak Irwan Ardianto ", produk: "Ayam kampung, bebek sungkem, geprek, dll",
+            kisaran_harga : "-", alamat : "RT 04, RW 01, Trimulyo I",
+            no_telp : "6281328530510",link_gmaps:"https://goo.gl/maps/vLMzMWuut9sGDtP96" },
+
+            {id: "1630,1790", nama_umkm: "Nio Snack", nama_pemilik: "Bu Endang Subekti", produk: "Aneka Snack dan Jajanan Pasar",
+            kisaran_harga : "-", alamat : "RT 04, RW 01, Trimulyo I",
+            no_telp : "6281772373225",link_gmaps:"https://goo.gl/maps/WEsLW6HLmGGPJPdu9" },
+
+            {id: "1688,1883", nama_umkm: "Dapur Bu Inock", nama_pemilik: "Bu Sri Puji Lestari", produk: "Masakan Jawa, Nasi uduk, gudeg, gado-gado, pecel, nasi bungkus, oseng, dll",
+            kisaran_harga : "Rp10000", alamat : "Jl. Pakaryan, RT 4, RW 1, Trimulyo I",
+            no_telp : "6281227937246",link_gmaps:"https://goo.gl/maps/rHrHpeiV6U6Kq3np9" },
+
+            {id: "1517,2079", nama_umkm: "Warung Makan Sederhana", nama_pemilik: "Pemilik", produk: "Makanan dan Lauk-pauk",
+            kisaran_harga : "", alamat : "RT 4, RW 1, Trimulyo I",
+            no_telp : "",link_gmaps:"https://maps.app.goo.gl/tnxXXetRR3KNhADS6" },
+
+            {id: "1740,2270", nama_umkm: "Pukis Pak Mistam", nama_pemilik: "Pak Mistam", produk: "Pukis",
+            kisaran_harga : "Rp7000/bungkus", alamat : "RT 04, RW 01, Trimulyo I",
+            no_telp : "6281327285322",link_gmaps:"https://goo.gl/maps/atvase6YWXqCZ3S57" },
+
+            {id: "1690,2360", nama_umkm: "Catering Mbak Yuli", nama_pemilik: "Bu Yuli", produk: "Nasi Box, Catering",
+            kisaran_harga : "-", alamat : "RT 04, RW 01, Trimulyo I",
+            no_telp : "681328534859",link_gmaps:"https://goo.gl/maps/J6PAq7wtqKfyVHM99" },
+
+            {id: "1480,2385", nama_umkm: "Dapoer Rahma", nama_pemilik: "Mbak Luthfi & Bu Siti Kalimah", produk: "Dimsum, sempol, donat, kripik pisang, dll",
+            kisaran_harga : "Rp5000an/mika", alamat : "RT 04, RW 01, Trimulyo I",
+            no_telp : "6287839898809",link_gmaps:"https://goo.gl/maps/WxQb9HxSYE7NNKxA9" },
+
+            {id: "1525,2740", nama_umkm: "Nasi Uduk 83", nama_pemilik: "Pak Tupandiyono", produk: "Nasi uduk dan bubur ayam",
+            kisaran_harga : "Rp5000-Rp12000", alamat : "Gg. Kemiri, No. 20, RT 4, RW 1, Trimulyo I",
+            no_telp : "6287838314512",link_gmaps:"https://goo.gl/maps/bscEzP4v4KwJKGVa9" },
+
+            {id: "1194,3222", nama_umkm: "Rumah Makan Barokah Sumber Rejeki", nama_pemilik: "Pak Gunawan", produk: "Nasi rames/masakan rumahan, nasi goreng, indomie rebus",
+            kisaran_harga : "Rp13000", alamat : "RT 05 RW 01 Trimulyo I",
+            no_telp : "6285217754440",link_gmaps:"https://goo.gl/maps/3XR9kA4bQTifpAZD6" },
+
+            {id: "1390,3290", nama_umkm: "Sop Senerek Iga Sapi & Daging Ayam", nama_pemilik: "Bu Hanifah", produk: "Sop senerek iga sapi dan sop senerek daging ayam",
+            kisaran_harga : "Rp10000-Rp23000", alamat : "RT 05 RW 01 Trimulyo I",
+            no_telp : "6287838240660",link_gmaps:"https://goo.gl/maps/3hFdLhJ4QpFwUPWeA" },
+
+            {id: "1560,3288", nama_umkm: "Soto Ayam Bu Sri & Ayam Geprek", nama_pemilik: "Bu Sri", produk: "Soto ayam, ayam geprek, mie goreng/rebus",
+            kisaran_harga : "Rp10000", alamat : "RT 05 RW 01 Trimulyo I",
+            no_telp : "6285292632025",link_gmaps:"https://goo.gl/maps/iAydeV7ATefzcMLv7" },
+
+            {id: "2308,3537", nama_umkm: "Tempe Giling Mulia", nama_pemilik: "Pak Tri Atmaji", produk: "Tempe",
+            kisaran_harga : "Rp2500-Rp3000", alamat : "RT 05, RW 01, Trimulyo I",
+            no_telp : "628179416793",link_gmaps:"https://goo.gl/maps/xvevJZe8hyMjJsEa9" },
+
+            {id: "2394,3619", nama_umkm: "Tempe Murni Pak Saman", nama_pemilik: "Pak Saman", produk: "Tempe",
+            kisaran_harga : "Rp2500, Rp5000, Rp7000", alamat : "RT 05, RW 01, Trimulyo I",
+            no_telp : "6287839901163",link_gmaps:"https://goo.gl/maps/xQXxBzCnMzwjjiHC8" },
+
+            {id: "2533,3623", nama_umkm: "Tempe Giling Pak Sis", nama_pemilik: "Pak Sis", produk: "Tempe",
+            kisaran_harga : "Rp2500", alamat : "RT 05, RW 01, Trimulyo I",
+            no_telp : "6282223078255",link_gmaps:"https://goo.gl/maps/YGM6QdmeezYAwcxg8" },
+
+            {id: "2672,3607", nama_umkm: "Gethuk Lindri Mak Ita", nama_pemilik: "Pak Suwarno", produk: "Gethuk lindri dan gethuk iris",
+            kisaran_harga : "Rp400/buah", alamat : "Gg. Menjangan, RT 05, RW 01, Trimulyo I",
+            no_telp : "6281909992021",link_gmaps:"https://goo.gl/maps/tbP3CLSxEP7A4c3P9" },
+
+            {id: "2820,3540", nama_umkm: "86 Rasa", nama_pemilik: "Bu Winarsih", produk: "Snack box dan nasi kotak",
+            kisaran_harga : "Rp15000-Rp30000", alamat : "RT 05, RW 01, Trimulyo I",
+            no_telp : "6281326846347",link_gmaps:"https://goo.gl/maps/mxePEvaj8MkF4sjVA" },
+
+            {id: "2904,3492", nama_umkm: "Gethuk Mentari", nama_pemilik: "Pak Sularto", produk: "Gethuk lindri dan gethuk iris",
+            kisaran_harga : "Rp1000", alamat : "RT 05, RW 01, Trimulyo I",
+            no_telp : "6287838314512",link_gmaps:"https://goo.gl/maps/nE46QA8xrAqxpe3aA" },
+
+            {id: "3271,3259", nama_umkm: "Putra Juice", nama_pemilik: "Bu Eta", produk: "Jus buah dan pop ice",
+            kisaran_harga : "Rp3000-Rp8000", alamat : "RT 05, RW 01, Trimulyo I",
+            no_telp : "628998927425",link_gmaps:"https://goo.gl/maps/PjVZhqvH4VfVFzGc6" },
+
+            {id: "1095,2647", nama_umkm: "Bintang Snack", nama_pemilik: "Bu Bella", produk: "Jajanan pasar, snack box, nasi kotak",
+            kisaran_harga : "RP1000-Rp25000", alamat : "Jl. Pakaryan, no. 25, RT 06, RW 01, Trimulyo I",
+            no_telp : "6287839240959",link_gmaps:"https://g.page/BintangSnack?share" }
+
+        
+            
+         ];
+         var db;
+         var request = window.indexedDB.open("UMKMDatabase", 1);
+         
+         request.onerror = function(event) {
+            console.log("error: ");
+         };
+         
+         request.onsuccess = function(event) {
+            db = request.result;
+            console.log("success: "+ db);
+         };
+         
+         request.onupgradeneeded = function(event) {
+            var db = event.target.result;
+            var objectStore = db.createObjectStore("umkm", {keyPath: "id"});
+            
+            for (var i in umkmData) {
+               objectStore.add(umkmData[i]);
+            }
+         }
+
+         function read(id_) {
+            var transaction = db.transaction(["umkm"]);
+            var objectStore = transaction.objectStore("umkm");
+            var request = objectStore.get(id_);
+            
+            request.onerror = function(event) {
+               alert("Unable to retrieve daa from database!");
+            };
+            
+            request.onsuccess = function(event) {
+               // Do something with the request.result!
+               if(request.result) {
+                $("#myPopup").children().remove();
+                var output = '';
+                output = "<a type='button' class='btn-cancel' onclick='myFunction()'><img src='cancel.png' alt='ham'></a><br>";
+                output += "<h1>"+request.result.nama_umkm+"</h1>";
+                output += "<p class='nama_pemilik'>"+request.result.nama_pemilik+"</p>";
+                output += "<h4>Produk</h4>";
+                output += "<p>"+request.result.produk+"</p>";
+                output += "<h4>Kisaran Harga</h4>";
+                output += "<p>"+request.result.kisaran_harga+"</p>";
+                output += "<h4>Alamat</h4>";
+                output += "<p class='last'>"+request.result.alamat+"</p>";
+                output += "<a href='https://api.whatsapp.com/send/?phone="+request.result.no_telp+"&text&type=phone_number&app_absent=0'><img src='wa.png'></img> "+request.result.nama_pemilik+"  </a> ";
+                output += "<a href='"+request.result.link_gmaps+"'><img src='gmaps.png'></img> "+request.result.nama_umkm+"</a>";
+
+                $('#myPopup').html(output);
+                
+               } else {
+                  alert("Kenny couldn't be found in your database!");
+               }
+            };
+         }
+
+
+</script>
+
+  </head>
+
+<body>
+    <div class="container1">
+        <img src="logo.png" alt="logo">
+        <!-- <h1>KKN-PPM UGM 2022</h1>
+        <h3>Mempersembahkan</h3> -->
+    </div>
+    <div class="container2">
+        <img src="jawa.jpg" alt="...">
+        <h2>Peta UMKM Trimulyo 1</h2>
+        <p>Dengan Peta UMKM Digital, diharapkan UMKM di Padukuhan Trimulyo I, Kalurahan Kepek, Wonosari, Gunung Kidul dapat lebih dikenal oleh masyarakat yang lebih luas.</p>
+    </div>
+    <div class="container3">
+        <map id="map" name="map">
+        <area class="satu" id="satu" shape="circle" coords="1537,593,200" href="#"></area>
+        <area class="dua" id="dua" shape="circle" coords="1183,1026,200" href="#"></area>
+        <area class="tiga" id="tiga" shape="circle" coords="1216,1235,200" href="#"></area>
+        <area class="empat" id="empat" shape="circle" coords="2090,810,200" href="#"></area>  
+        <area class="lima" id="lima" shape="circle" coords="2261,916,200" href="#"></area> 
+        <area class="enam" id="enam" shape="circle" coords="1370,1750,70" href="#"></area> 
+        <area class="tujuh" id="tujuh" shape="circle" coords="1199,1733,200" href="#"></area>
+        <area class="delapan" id="delapan" shape="circle" coords="1023,1941,200" href="#"></area>
+        <area class="sembilan" id="sembilan" shape="circle" coords="1199,2129,200" href="#"></area>
+        <area class="sepuluh" id="sepuluh" shape="circle" coords="562,2162,200" href="#"></area>
+        <area class="sebelas" id="sebelas" shape="circle" coords="1864,1439,200" href="#"></area>
+        <area class="duabelas" id="duabelas" shape="circle" coords="1630,1790,100" href="#"></area>
+        <area class="tigabelas" id="tigabelas" shape="circle" coords="1688,1883,200" href="#"></area>
+        <area class="empatbelas" id="empatbelas" shape="circle" coords="1517,2079,200" href="#"></area>
+        <area class="limabelas" id="limabelas" shape="circle" coords="1740,2270,100" href="#"></area>
+        <area class="enambelas" id="enambelas" shape="circle" coords="1690,2360,100" href="#"></area>
+        <area class="tujuhbelas" id="tujuhbelas" shape="circle" coords="1480,2385,200" href="#"></area>
+        <area class="delapanbelas" id="delapanbelas" shape="circle" coords="1525,2740,200" href="#"></area>
+        <area class="sembilanbelas" id="sembilanbelas" shape="circle" coords="1194,3222,200" href="#"></area>
+        <area class="duapuluh" id="duapuluh" shape="circle" coords="1390,3290,100" href="#"></area>
+        <area class="duasatu" id="duasatu" shape="circle" coords="1560,3288,100" href="#"></area>
+        <area class="duadua" id="duadua" shape="circle" coords="2308,3537,200"href="#"></area>
+        <area class="duatiga" id="duatiga" shape="circle" coords="2394,3619,200" href="#"></area>
+        <area class="duaempat" id="duaempat" shape="circle" coords="2533,3623,200" href="#"></area>
+        <area class="dualima" id="dualima" shape="circle" coords="2672,3607,200" href="#"></area>
+        <area class="duaenam" id="duaenam" shape="circle" coords="2820,3540,100" href="#"></area>
+        <area class="duatujuh" id="duatujuh" shape="circle" coords="2904,3492,200" href="#"></area>
+        <area class="duadelapan" id="duadelapan" shape="circle" coords="3271,3259,200" href="#"></area>
+        <area class="duasembilan" id="duasembilan" shape="circle" coords="1095,2647,200" href="#"></area>
+
+        </map>
+          <img src="peta1.jpg" usemap="#map" id="image" />
+    </div>
+    <div class="container4">
+        <img src="nama_umkm.jpg" alt="" width="100%" height="auto">
+    </div>
+    <div class="popup" id="myPopup_">
+        <span class="popuptext" id="myPopup">
+            <!-- <a type="button" class="btn-cancel" onclick="myFunction()"><img src="cancel.png" alt=""></a><br>
+            <h1>1. Dapur Nyonya</h1>
+            <p class="nama_pemilik">Bu Sari Prasetyani</p>
+            <h4>Produk</h4>
+            <p>Jajanan Pasar, Pastel, Nasi Box</p>
+            <h4>Kisaran Harga</h4>
+            <p>Mulai Rp2000</p>
+            <h4>Alamat</h4>
+            <p class="last">Gg. Labu, No. 17, RT 1, RW 1, Trimulyo I</p>
+            <a href="https://api.whatsapp.com/send/?phone=6282251600684&text&type=phone_number&app_absent=0"><img src="wa.png"></img> Bu Sari</a>
+            <a href="https://goo.gl/maps/EJ39R6weV1XdczfV7"><img src="gmaps.png"></img> Dapur Nyonya</a> -->
+        </span>
+    </div>
+
+</body>
+
+<script type="text/javascript">
+    new window.PinchZoom.default(document.querySelector('div.container3'), { verticalPadding:20, horizontalPadding: 30});
+    function myFunction() {
+        var popup = document.getElementById("myPopup");
+        popup.classList.toggle("show");
+        $("#myPopup").children().remove();
+        document.getElementById("myPopup_").style.height="0px";
+    }
+
+
+    $(".satu").on("click", function(e){
+    e.preventDefault();
+    var area = document.getElementById('satu');
+    var coords = area.coords.split(',');
+    var x = coords[0];
+    var y = coords[1];
+    var id_ = x+','+y;
+    read(id_);
+    document.getElementById("myPopup_").style.height="370px";
+    var popup = document.getElementById("myPopup");
+        popup.classList.toggle("show"); 
+    });
+
+    $(".dua").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('dua');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".tiga").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('tiga');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".empat").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('empat');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".lima").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('lima');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".enam").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('enam');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".tujuh").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('tujuh');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".delapan").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('delapan');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".sembilan").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('sembilan');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".sepuluh").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('sepuluh');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".sebelas").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('sebelas');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".duabelas").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('duabelas');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="400px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".tigabelas").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('tigabelas');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="400px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".empatbelas").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('empatbelas');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".limabelas").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('limabelas');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".enambelas").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('enambelas');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".tujuhbelas").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('tujuhbelas');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".delapanbelas").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('delapanbelas');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".sembilanbelas").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('sembilanbelas');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".duapuluh").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('duapuluh');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".duasatu").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('duasatu');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".duadua").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('duadua');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".duatiga").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('duatiga');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".duaempat").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('duaempat');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".dualima").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('dualima');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".duaenam").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('duaenam');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".duatujuh").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('duatujuh');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".duadelapan").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('duadelapan');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+
+    $(".duasembilan").on("click", function(e){
+        $("#myPopup").children().remove();
+        e.preventDefault();
+        var area = document.getElementById('duasembilan');
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        var y = coords[1];
+        var id_ = x+','+y;
+        read(id_);
+        document.getElementById("myPopup_").style.height="370px";
+        var popup = document.getElementById("myPopup");
+            popup.classList.toggle("show");
+    });
+</script>
