@@ -1,0 +1,40 @@
+<map id="map" name="map">
+    <area coords="15,92,568,247" alt="Blah" href="javascript:alert('hello');" />
+    <area coords="18,259,546,432" alt="Blah" href="javascript:alert('hello 2');" />
+    <area coords="18,229,546,932" alt="Blah" href="javascript:alert('hello 2');" />
+  </map>
+  <input type="button" value="+" onclick="javascript:ZoomIn();"/>
+  <input type="button" value="-" onclick="javascript:ZoomOut();"/><br />
+  <img src="peta.png" usemap="#map" id="image" />
+
+  <script type="text/javascript">
+    function ZoomIn() {
+      Zoom(1.1);
+    }
+
+    function ZoomOut() {
+      Zoom(0.9);
+    }
+
+    function Zoom(amount) {
+      // resize image
+      var image = document.getElementById('image');
+      image.height = image.height * amount;
+
+      // resize image map
+      var map = document.getElementById('map');
+      for (var i = 0; i < map.areas.length; i++) {
+        var area = map.areas[i];
+        var coords = area.coords.split(',');
+        var x = coords[0];
+        alert(x);
+        var y = coords[1];
+        alert(y);
+        for (var j = 0; j < coords.length; j++) {
+          coords[j] = coords[j] * amount;
+        }
+        area.coords = coords[0] + ',' + coords[1] + ',' + coords[2] + ',' + coords[3];
+      }
+    }
+  </script>
+
