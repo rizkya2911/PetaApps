@@ -52,6 +52,13 @@ body {
     height: auto;
     margin-bottom: 0px;
 }
+.container2 .info{
+  color: rgb(255, 0, 0);
+  font-weight: bolder;
+  font-size: 10px;
+  margin-bottom: 30px;
+  
+}
 
 .container4{
   width: 100%;

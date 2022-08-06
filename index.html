@@ -972,7 +972,7 @@
             kisaran_harga : "Rp15000-Rp135000", alamat : "RT 02, RW 01, Trimulyo I",
             no_telp : "6281229856111",link_gmaps:"https://goo.gl/maps/JkjsDf4BVEvo2RwT9" },
 
-            {id: "1370,1750", nama_umkm: "Mebel Sridaya", nama_pemilik: "Pemilik", produk: "Peralatan kantor & rumah, kursi, meja, keranjang kasur, lemari, dll",
+            {id: "1400,1750", nama_umkm: "Mebel Sridaya", nama_pemilik: "Pemilik", produk: "Peralatan kantor & rumah, kursi, meja, keranjang kasur, lemari, dll",
             kisaran_harga : "Rp500000-Rp2000000", alamat : "Jl. Veteran, No. 12, RT 3, RW 1, Trimulyo I",
             no_telp : "6287738500837",link_gmaps:"https://goo.gl/maps/xDeGCfQmoZ21tiRXA" },
 
@@ -1008,11 +1008,11 @@
             kisaran_harga : "", alamat : "RT 4, RW 1, Trimulyo I",
             no_telp : "",link_gmaps:"https://maps.app.goo.gl/tnxXXetRR3KNhADS6" },
 
-            {id: "1740,2270", nama_umkm: "Pukis Pak Mistam", nama_pemilik: "Pak Mistam", produk: "Pukis",
+            {id: "1760,2300", nama_umkm: "Pukis Pak Mistam", nama_pemilik: "Pak Mistam", produk: "Pukis",
             kisaran_harga : "Rp7000/bungkus", alamat : "RT 04, RW 01, Trimulyo I",
             no_telp : "6281327285322",link_gmaps:"https://goo.gl/maps/atvase6YWXqCZ3S57" },
 
-            {id: "1690,2360", nama_umkm: "Catering Mbak Yuli", nama_pemilik: "Bu Yuli", produk: "Nasi Box, Catering",
+            {id: "1700,2380", nama_umkm: "Catering Mbak Yuli", nama_pemilik: "Bu Yuli", produk: "Nasi Box, Catering",
             kisaran_harga : "-", alamat : "RT 04, RW 01, Trimulyo I",
             no_telp : "681328534859",link_gmaps:"https://goo.gl/maps/J6PAq7wtqKfyVHM99" },
 
@@ -1024,7 +1024,7 @@
             kisaran_harga : "Rp5000-Rp12000", alamat : "Gg. Kemiri, No. 20, RT 4, RW 1, Trimulyo I",
             no_telp : "6287838314512",link_gmaps:"https://goo.gl/maps/bscEzP4v4KwJKGVa9" },
 
-            {id: "1194,3222", nama_umkm: "Rumah Makan Barokah Sumber Rejeki", nama_pemilik: "Pak Gunawan", produk: "Nasi rames/masakan rumahan, nasi goreng, indomie rebus",
+            {id: "1194,3222", nama_umkm: "RM Barokah Sumber Rejeki", nama_pemilik: "Pak Gunawan", produk: "Masakan rumahan, nasi goreng, indomie rebus",
             kisaran_harga : "Rp13000", alamat : "RT 05 RW 01 Trimulyo I",
             no_telp : "6285217754440",link_gmaps:"https://goo.gl/maps/3XR9kA4bQTifpAZD6" },
 
@@ -1115,8 +1115,8 @@
                 output += "<p>"+request.result.kisaran_harga+"</p>";
                 output += "<h4>Alamat</h4>";
                 output += "<p class='last'>"+request.result.alamat+"</p>";
-                output += "<a href='https://api.whatsapp.com/send/?phone="+request.result.no_telp+"&text&type=phone_number&app_absent=0'><img src='wa.png'></img> "+request.result.nama_pemilik+"  </a> ";
-                output += "<a href='"+request.result.link_gmaps+"'><img src='gmaps.png'></img> "+request.result.nama_umkm+"</a>";
+                output += "<a href='https://api.whatsapp.com/send/?phone="+request.result.no_telp+"&text&type=phone_number&app_absent=0'><img src='wa.png'></img> Nomor WA  </a> ";
+                output += "<a href='"+request.result.link_gmaps+"'><img src='gmaps.png'></img> Lihat Lokasi</a>";
 
                 $('#myPopup').html(output);
                 
@@ -1141,6 +1141,8 @@
         <img src="jawa.jpg" alt="...">
         <h2>Peta UMKM Trimulyo 1</h2>
         <p>Dengan Peta UMKM Digital, diharapkan UMKM di Padukuhan Trimulyo I, Kalurahan Kepek, Wonosari, Gunung Kidul dapat lebih dikenal oleh masyarakat yang lebih luas.</p>
+        <i class="info">Klik lingkaran merah pada peta untuk melihat detail UMKM.</i>
+        <p style="font-size: 10px;">*Peta dapat diperbesar/diperkecil pada layar sentuh*</p><br><br>
     </div>
     <div class="container3">
         <map id="map" name="map">
@@ -1149,7 +1151,7 @@
         <area class="tiga" id="tiga" shape="circle" coords="1216,1235,200" href="#"></area>
         <area class="empat" id="empat" shape="circle" coords="2090,810,200" href="#"></area>  
         <area class="lima" id="lima" shape="circle" coords="2261,916,200" href="#"></area> 
-        <area class="enam" id="enam" shape="circle" coords="1370,1750,70" href="#"></area> 
+        <area class="enam" id="enam" shape="circle" coords="1400,1750,70" href="#"></area> 
         <area class="tujuh" id="tujuh" shape="circle" coords="1199,1733,200" href="#"></area>
         <area class="delapan" id="delapan" shape="circle" coords="1023,1941,200" href="#"></area>
         <area class="sembilan" id="sembilan" shape="circle" coords="1199,2129,200" href="#"></area>
@@ -1158,8 +1160,8 @@
         <area class="duabelas" id="duabelas" shape="circle" coords="1630,1790,100" href="#"></area>
         <area class="tigabelas" id="tigabelas" shape="circle" coords="1688,1883,200" href="#"></area>
         <area class="empatbelas" id="empatbelas" shape="circle" coords="1517,2079,200" href="#"></area>
-        <area class="limabelas" id="limabelas" shape="circle" coords="1740,2270,100" href="#"></area>
-        <area class="enambelas" id="enambelas" shape="circle" coords="1690,2360,100" href="#"></area>
+        <area class="limabelas" id="limabelas" shape="circle" coords="1760,2300,100" href="#"></area>
+        <area class="enambelas" id="enambelas" shape="circle" coords="1700,2380,100" href="#"></area>
         <area class="tujuhbelas" id="tujuhbelas" shape="circle" coords="1480,2385,200" href="#"></area>
         <area class="delapanbelas" id="delapanbelas" shape="circle" coords="1525,2740,200" href="#"></area>
         <area class="sembilanbelas" id="sembilanbelas" shape="circle" coords="1194,3222,200" href="#"></area>
@@ -1176,7 +1178,7 @@
 
         </map>
           <img src="peta1.jpg" usemap="#map" id="image" />
-    </div>
+    </div><br><br>
     <div class="container4">
         <img src="nama_umkm.jpg" alt="" width="100%" height="auto">
     </div>
@@ -1216,7 +1218,7 @@
     var y = coords[1];
     var id_ = x+','+y;
     read(id_);
-    document.getElementById("myPopup_").style.height="370px";
+    document.getElementById("myPopup_").style.height="400px";
     var popup = document.getElementById("myPopup");
         popup.classList.toggle("show"); 
     });
@@ -1230,7 +1232,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1244,7 +1246,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1258,7 +1260,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1272,7 +1274,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1286,7 +1288,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1300,7 +1302,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1314,7 +1316,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1328,7 +1330,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1342,7 +1344,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1356,7 +1358,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1398,7 +1400,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1412,7 +1414,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1426,7 +1428,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1440,7 +1442,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1454,7 +1456,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1468,7 +1470,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1482,7 +1484,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1496,7 +1498,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1510,7 +1512,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1524,7 +1526,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1538,7 +1540,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1552,7 +1554,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1566,7 +1568,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1580,7 +1582,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1594,7 +1596,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
@@ -1608,7 +1610,7 @@
         var y = coords[1];
         var id_ = x+','+y;
         read(id_);
-        document.getElementById("myPopup_").style.height="370px";
+        document.getElementById("myPopup_").style.height="400px";
         var popup = document.getElementById("myPopup");
             popup.classList.toggle("show");
     });
