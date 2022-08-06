@@ -74,10 +74,23 @@ body {
   margin-bottom: 0px;
 }
 
+
+
 .container4 img{
   display: block;
   width: 100%;
   height: auto;
+  border: 1px solid;
+  margin-bottom: 24px;
+}
+
+.download{
+  text-align: center;
+}
+
+.download img{
+  text-align: center;
+  width: 12%;
 }
 
 .popup {
